@@ -6,7 +6,7 @@ class TodoTile extends StatelessWidget {
   final TodoItem todo;
   final VoidCallback onToggleCompletion;
   final VoidCallback onDelete;
-  final Function(TodoItem) onEdit; // Add a callback for editing
+  final Function(TodoItem) onEdit;
 
   const TodoTile({
     super.key,
@@ -35,14 +35,14 @@ class TodoTile extends StatelessWidget {
                     todo.isCompleted ? TextDecoration.lineThrough : null,
               ),
             ),
-            subtitle: Text(todo.formattedDueDate),
+            subtitle: Text(todo.formattedDueDate), // Displays the due date in 12-hour format
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
                   icon: const Icon(Icons.edit),
                   onPressed: () {
-                    onEdit(todo); // Trigger the edit functionality
+                    onEdit(todo);
                   },
                 ),
                 IconButton(

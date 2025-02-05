@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:myapp/models/checklist_item.dart';
 import 'package:myapp/models/todo_item.dart';
 import 'package:myapp/utils/notification_service.dart';
@@ -81,31 +82,13 @@ class _TodoListScreenState extends State<TodoListScreen> {
             Row(
               children: [
                 ElevatedButton(
-                  onPressed: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: _selectedDate ?? DateTime.now(),
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime(2101),
-                    );
-                    if (picked != null) {
-                      setState(() {
-                        _selectedDate = DateTime(
-                          picked.year,
-                          picked.month,
-                          picked.day,
-                          _selectedDate?.hour ?? 0,
-                          _selectedDate?.minute ?? 0,
-                        );
-                      });
-                    }
-                  },
+                  onPressed: () => _selectDate(context),
                   child: const Text('Set Due Date'),
                 ),
                 const SizedBox(width: 8),
                 Text(_selectedDate == null
                     ? 'No date selected'
-                    : _selectedDate.toString()),
+                    : DateFormat('yyyy-MM-dd h:mm a').format(_selectedDate!)),
               ],
             ),
           ],
@@ -158,16 +141,30 @@ class _TodoListScreenState extends State<TodoListScreen> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
-    final picked = await showDatePicker(
+    final pickedDate = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
+      initialDate: _selectedDate ?? DateTime.now(),
       firstDate: DateTime.now(),
       lastDate: DateTime(2101),
     );
-    if (picked != null) {
-      setState(() {
-        _selectedDate = picked;
-      });
+
+    if (pickedDate != null) {
+      final pickedTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(_selectedDate ?? DateTime.now()),
+      );
+
+      if (pickedTime != null) {
+        setState(() {
+          _selectedDate = DateTime(
+            pickedDate.year,
+            pickedDate.month,
+            pickedDate.day,
+            pickedTime.hour,
+            pickedTime.minute,
+          );
+        });
+      }
     }
   }
 
@@ -208,7 +205,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
                     const SizedBox(width: 8),
                     Text(_selectedDate == null
                         ? 'No date selected'
-                        : _selectedDate.toString()),
+                        : DateFormat('yyyy-MM-dd h:mm a').format(_selectedDate!)),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -229,7 +226,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
                         todo: _todos[index],
                         onToggleCompletion: () => _toggleCompletion(index),
                         onDelete: () => _removeTodo(index),
-                        onEdit: (todo) => _editTodo(index, todo), // Fixed here
+                        onEdit: (todo) => _editTodo(index, todo),
                       );
                     },
                   ),

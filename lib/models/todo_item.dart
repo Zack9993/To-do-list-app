@@ -1,5 +1,5 @@
 import 'package:intl/intl.dart';
-import 'checklist_item.dart';
+import 'package:myapp/models/checklist_item.dart';
 
 class TodoItem {
   String title;
@@ -17,7 +17,8 @@ class TodoItem {
   });
 
   String get formattedDueDate {
-    return DateFormat('yyyy-MM-dd HH:mm').format(dueDate);
+    // Use DateFormat to format the date and time in 12-hour format
+    return DateFormat('yyyy-MM-dd h:mm a').format(dueDate);
   }
 
   void toggleCompletion() {
