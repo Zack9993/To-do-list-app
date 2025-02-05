@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:myapp/models/checklist_item.dart';
 import 'package:myapp/models/todo_item.dart';
+import 'package:myapp/utils/notification_service.dart';
 import 'package:myapp/widgets/todo_tile.dart';
 
 class TodoListScreen extends StatefulWidget {
@@ -11,15 +13,136 @@ class TodoListScreen extends StatefulWidget {
 
 class _TodoListScreenState extends State<TodoListScreen> {
   final List<TodoItem> _todos = [];
-  final TextEditingController _textEditingController = TextEditingController();
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _checklistController = TextEditingController();
+  DateTime? _selectedDate;
+
+  @override
+  void initState() {
+    super.initState();
+    NotificationService.initialize();
+  }
 
   void _addTodo() {
-    if (_textEditingController.text.isNotEmpty) {
+    if (_titleController.text.isNotEmpty && _selectedDate != null) {
       setState(() {
-        _todos.add(TodoItem(title: _textEditingController.text));
-        _textEditingController.clear(); // Clear the text field after adding
+        _todos.add(
+          TodoItem(
+            title: _titleController.text,
+            description: _descriptionController.text,
+            dueDate: _selectedDate!,
+            checklist: [],
+          ),
+        );
+        _titleController.clear();
+        _descriptionController.clear();
+        _selectedDate = null;
+
+        // Schedule notification
+        NotificationService.scheduleNotification(
+          id: _todos.length,
+          title: 'Task Reminder',
+          body: _titleController.text,
+          scheduledTime: _selectedDate!,
+        );
       });
     }
+  }
+
+  void _editTodo(int index, TodoItem originalTodo) {
+    _titleController.text = originalTodo.title;
+    _descriptionController.text = originalTodo.description;
+    _selectedDate = originalTodo.dueDate;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Task'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _titleController,
+              decoration: const InputDecoration(
+                labelText: 'Task Title',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _descriptionController,
+              decoration: const InputDecoration(
+                labelText: 'Task Description',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                ElevatedButton(
+                  onPressed: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _selectedDate ?? DateTime.now(),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime(2101),
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        _selectedDate = DateTime(
+                          picked.year,
+                          picked.month,
+                          picked.day,
+                          _selectedDate?.hour ?? 0,
+                          _selectedDate?.minute ?? 0,
+                        );
+                      });
+                    }
+                  },
+                  child: const Text('Set Due Date'),
+                ),
+                const SizedBox(width: 8),
+                Text(_selectedDate == null
+                    ? 'No date selected'
+                    : _selectedDate.toString()),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (_titleController.text.isNotEmpty && _selectedDate != null) {
+                setState(() {
+                  _todos[index] = TodoItem(
+                    title: _titleController.text,
+                    description: _descriptionController.text,
+                    dueDate: _selectedDate!,
+                    checklist: originalTodo.checklist,
+                    isCompleted: originalTodo.isCompleted,
+                  );
+
+                  // Reschedule notification
+                  NotificationService.scheduleNotification(
+                    id: index,
+                    title: 'Task Reminder',
+                    body: _titleController.text,
+                    scheduledTime: _selectedDate!,
+                  );
+                });
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _toggleCompletion(int index) {
@@ -34,6 +157,20 @@ class _TodoListScreenState extends State<TodoListScreen> {
     });
   }
 
+  Future<void> _selectDate(BuildContext context) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2101),
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -44,21 +181,40 @@ class _TodoListScreenState extends State<TodoListScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _textEditingController,
-                    decoration: const InputDecoration(
-                      labelText: 'Add a task',
-                      border: OutlineInputBorder(),
-                    ),
+                TextField(
+                  controller: _titleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Task Title',
+                    border: OutlineInputBorder(),
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _descriptionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Task Description',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    ElevatedButton(
+                      onPressed: () => _selectDate(context),
+                      child: const Text('Set Due Date'),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(_selectedDate == null
+                        ? 'No date selected'
+                        : _selectedDate.toString()),
+                  ],
+                ),
+                const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: _addTodo,
-                  child: const Text('Add'),
+                  child: const Text('Add Task'),
                 ),
               ],
             ),
@@ -73,11 +229,49 @@ class _TodoListScreenState extends State<TodoListScreen> {
                         todo: _todos[index],
                         onToggleCompletion: () => _toggleCompletion(index),
                         onDelete: () => _removeTodo(index),
+                        onEdit: (todo) => _editTodo(index, todo), // Fixed here
                       );
                     },
                   ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Add Checklist Item'),
+              content: TextField(
+                controller: _checklistController,
+                decoration:
+                    const InputDecoration(hintText: 'Enter checklist item'),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    if (_checklistController.text.isNotEmpty &&
+                        _todos.isNotEmpty) {
+                      setState(() {
+                        _todos.last.checklist.add(
+                          ChecklistItem(title: _checklistController.text),
+                        );
+                        _checklistController.clear();
+                      });
+                    }
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Add'),
+                ),
+              ],
+            ),
+          );
+        },
+        child: const Icon(Icons.add),
       ),
     );
   }
